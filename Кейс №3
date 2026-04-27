@@ -1,0 +1,105 @@
+django-admin startproject greetings_project
+cd greetings_project
+django-admin startapp greetings
+
+from django.db import models
+
+class UserName(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+from django import forms
+from .models import UserName
+
+class NameForm(forms.ModelForm):
+    class Meta:
+        model = UserName
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'})
+        }
+
+from django.shortcuts import render, redirect
+from .forms import NameForm
+from .models import UserName
+
+def index(request):
+    if request.method == 'POST':
+        form = NameForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            if not name:
+                return render(request, 'greetings/index.html', {'form': form, 'error': 'Введите имя'})
+            
+            # Сохраняем в базу данных
+            UserName.objects.create(name=name)
+            return render(request, 'greetings/index.html', {'name': name})
+    else:
+        form = NameForm()
+    
+    return render(request, 'greetings/index.html', {'form': form})
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+]
+
+INSTALLED_APPS = [
+    ...
+    'greetings',
+]
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Приветствие</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 50px;
+        }
+        .container {
+            max-width: 600px;
+        }
+        .card {
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title text-center">Приветствие</h2>
+                
+                {% if name %}
+                    <h3 class="text-center mt-4">Здравствуйте, {{ name }}!</h3>
+                {% endif %}
+                
+                {% if error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        {{ form.as_p }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Отправить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+python manage.py makemigrations greetings
+python manage.py migrate
+python manage.py runserver
